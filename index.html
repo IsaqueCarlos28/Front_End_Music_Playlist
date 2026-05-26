@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Directory</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f4f6f9;
+            color: #333;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        header {
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        header h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        /* Loading and Error States */
+        #loading, #error-message {
+            text-align: center;
+            font-size: 1.2rem;
+            padding: 20px;
+            font-weight: bold;
+        }
+        #error-message {
+            color: #e74c3c;
+            background: #fdf2f2;
+            border-radius: 8px;
+            border: 1px solid #f5c6cb;
+            display: none;
+        }
+
+        /* Grid Layout */
+        .user-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        /* User Card Styling */
+        .user-card {
+            background: #ffffff;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            transition: transform 0.2s, box-shadow 0.2s;
+            position: relative;
+            border-top: 5px solid #3498db;
+        }
+
+        .user-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .user-card.admin {
+            border-top-color: #e67e22;
+        }
+
+        .role-badge {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            padding: 4px 8px;
+            border-radius: 50px;
+            background: #e8f4fd;
+            color: #3498db;
+        }
+
+        .user-card.admin .role-badge {
+            background: #fdf2e9;
+            color: #e67e22;
+        }
+
+        .user-name {
+            font-size: 1.3rem;
+            color: #2c3e50;
+            margin-bottom: 5px;
+            text-transform: capitalize;
+        }
+
+        .user-email {
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            margin-bottom: 15px;
+        }
+
+        /* Profile details (if available) */
+        .profile-box {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #ecf0f1;
+            font-size: 0.85rem;
+        }
+
+        .profile-box p {
+            color: #555;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>Registered Users</h1>
+            <p>Fetching secured real-time data from local API</p>
+        </header>
+
+        <div id="loading">Loading users...</div>
+        <div id="error-message">Failed to load users. Please check your API configuration or server connection.</div>
+        
+        <div id="user-grid" class="user-grid"></div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8080/usuarios?page=0&size=20';
+        
+        // API Authentication details
+        const API_KEY_NAME = 'X-API-KEY';
+        const API_KEY_VALUE = 'e6357520ef094ccd99315d4b23df40a4';
+
+        async function fetchUsers() {
+            const grid = document.getElementById('user-grid');
+            const loading = document.getElementById('loading');
+            const errorMsg = document.getElementById('error-message');
+
+            try {
+                // Fetch request incorporating your required API Key header
+                const response = await fetch(API_URL, {
+                    method: 'GET',
+                    headers: {
+                        [API_KEY_NAME]: API_KEY_VALUE,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                // Extracting the list from the Spring Boot HATEOAS wrapper structure
+                const users = data._embedded ? data._embedded.usuarioResponseDTOList : [];
+                
+                loading.style.display = 'none';
+                
+                if (users.length === 0) {
+                    grid.innerHTML = '<p style="grid-column: 1/-1; text-align:center;">No users found.</p>';
+                    return;
+                }
+
+                // Render each user card
+                grid.innerHTML = users.map(user => {
+                    const isAdmin = user.role === 'ADMIN' ? 'admin' : '';
+                    
+                    // Handle dynamic profile/bio information if it exists
+                    let profileHtml = '';
+                    if (user.perfil && user.perfil.biografia) {
+                        profileHtml = `
+                            <div class="profile-box">
+                                <strong>Bio:</strong>
+                                <p>"${user.perfil.biografia}"</p>
+                            </div>
+                        `;
+                    }
+
+                    return `
+                        <div class="user-card ${isAdmin}">
+                            <span class="role-badge">${user.role}</span>
+                            <h2 class="user-name">${user.nome}</h2>
+                            <p class="user-email">${user.email}</p>
+                            ${profileHtml}
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (error) {
+                console.error("Error fetching data: ", error);
+                loading.style.display = 'none';
+                errorMsg.style.display = 'block';
+            }
+        }
+
+        // Initialize fetch on page load
+        window.addEventListener('DOMContentLoaded', fetchUsers);
+    </script>
+</body>
+</html>
